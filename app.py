@@ -8,15 +8,28 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'secure_assignment_key_final'
 
-# --- DATABASE CONNECTION ---
+# --- DATABASE CONNECTION WITH RLS INJECTION ---
 def get_db():
-    return pyodbc.connect(
-        'DRIVER={ODBC Driver 18 for SQL Server};'
-        'SERVER=LAPTOP-7O2M5DER;'
+    # 1. Create the connection object (store it in a variable)
+    conn = pyodbc.connect(
+        'DRIVER={ODBC Driver 17 for SQL Server};'
+        'SERVER=localhost;'
         'DATABASE=StudentProjectDB;'
         'Trusted_Connection=yes;'
     )
-
+    
+    # 2. RLS Security Logic (Now structurally reachable)
+    # We check if a user is currently logged in via Flask session
+    if 'user_id' in session and 'role' in session:
+        cursor = conn.cursor()
+        # We inject the current UserID and RoleID into SQL Server's session memory
+        # This allows the SQL Security Policy (created in SSMS) to filter rows automatically
+        cursor.execute("EXEC sp_set_session_context @key=N'UserID', @value=?", (session['user_id'],))
+        cursor.execute("EXEC sp_set_session_context @key=N'RoleID', @value=?", (session['role'],))
+        cursor.close()
+        
+    # 3. Finally, return the configured connection
+    return conn
 # --- SECURITY UTILITIES ---
 def hash_password(password, salt=None):
     if not salt: salt = os.urandom(16).hex()
