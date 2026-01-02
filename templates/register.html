@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head><title>Secure Register</title></head>
+<body style="font-family:sans-serif; text-align:center; padding-top:50px; background:#f4f4f4;">
+    <div style="background:white; display:inline-block; padding:30px; border-radius:10px; box-shadow:0 0 10px #ccc;">
+        <h2>Register</h2>
+        <form method="POST">
+            <input type="text" name="username" placeholder="Username" required><br><br>
+            
+            <input type="password" name="password" placeholder="Password" required>
+            <small style="display:block; color:gray; font-size:10px;">(Min 8 chars, A-Z, 0-9, Symbol)</small><br>
+            
+            <input type="email" name="email" placeholder="Email (Masked in DB)" required><br><br>
+            <input type="text" name="phone" placeholder="Phone (Encrypted in DB)" required><br><br>
+            
+            <select name="role">
+                <option value="3">Student</option>
+                <option value="2">Lecturer</option>
+                <option value="1">Admin</option>
+                <option value="4">External Examiner</option>
+            </select><br><br>
+            
+            <input type="checkbox" name="consent" required>
+            <label>I agree to PDPA Data Processing.</label><br><br>
+            
+            <button type="submit" style="background:#28a745; color:white; border:none; padding:10px;">Register</button>
+        </form>
+        <br><a href="/">Back to Login</a>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %} <p style="color:red">{{ messages[0] }}</p> {% endif %}
+        {% endwith %}
+    </div>
+</body>
+</html>

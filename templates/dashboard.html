@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; margin: 0; background: #f4f6f8; }
+        .sidebar { width: 220px; background: #343a40; color: white; height: 100vh; padding: 20px; position: fixed; }
+        .sidebar a { display: block; color: #adb5bd; padding: 10px; text-decoration: none; }
+        .sidebar a:hover { color: white; background: #495057; border-radius: 5px; }
+        .content { margin-left: 260px; padding: 20px; width: 100%; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .audit-log { background: #222; color: #0f0; padding: 10px; font-family: monospace; height: 150px; overflow-y: scroll; }
+        .badge { background: red; color: white; padding: 2px 6px; border-radius: 50%; font-size: 12px; }
+        .role-badge { padding: 5px; color: white; border-radius: 4px; font-weight: bold; }
+        .role-1 { background: #d9534f; } /* Admin */
+        .role-2 { background: #f0ad4e; } /* Lecturer */
+        .role-3 { background: #5bc0de; } /* Student */
+        .role-4 { background: #5cb85c; } /* Examiner */
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>Portal</h2>
+    <p>User: {{ username }}</p>
+    <div class="role-badge role-{{ role }}">
+        {% if role == 1 %}Admin{% elif role == 2 %}Lecturer{% elif role == 3 %}Student{% else %}Examiner{% endif %}
+    </div>
+    <hr>
+    <a href="/dashboard"><i class="fa fa-home"></i> Dashboard</a>
+    <a href="/notifications"><i class="fa fa-bell"></i> Alerts {% if notif_count > 0 %}<span class="badge">{{ notif_count }}</span>{% endif %}</a>
+    <a href="/feedback"><i class="fa fa-comment"></i> Feedback</a>
+    <a href="/logout"><i class="fa fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<div class="content">
+    
+    {% if role == 1 %}
+    <div class="card" style="border-left: 5px solid #d9534f;">
+        <h3>🛡️ Admin Security Center</h3>
+        <p>
+            <strong>Attack Surface Reduction:</strong> 
+            Uploads are: <b>{% if uploads_allowed == 'TRUE' %} <span style="color:green">ENABLED</span> {% else %} <span style="color:red">DISABLED</span> {% endif %}</b>
+            <a href="/toggle_security" style="margin-left:10px; color:blue;">[Toggle Switch]</a>
+        </p>
+        <h4>📜 Live Audit Log (Last 15 Events)</h4>
+        <div class="audit-log">
+            {% for log in audit_logs %}
+            <div>[{{ log[5].strftime('%H:%M:%S') }}] <strong>{{ log[1] }}</strong> - {{ log[6] }} (IP: {{ log[4] }})</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if role == 3 %}
+    <div class="card">
+        {% if uploads_allowed == 'TRUE' %}
+        <h3>🚀 Submit New Project</h3>
+        <form action="/submit" method="POST">
+            <input type="text" name="title" placeholder="Project Title" required style="padding:8px; width:30%">
+            <input type="text" name="desc" placeholder="Description" style="padding:8px; width:40%">
+            <input type="text" name="link" placeholder="GitHub Link" required style="padding:8px; width:20%">
+            <button type="submit" style="padding:8px;">Submit</button>
+        </form>
+        {% else %}
+        <h3 style="color:red;">⚠️ Submissions Disabled by Admin Policy.</h3>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h3>Project Repository</h3>
+        <table width="100%" border="1" style="border-collapse:collapse; border-color:#eee;">
+            <tr style="background:#f9f9f9;">
+                <th style="padding:10px;">Title</th>
+                <th>Description</th>
+                <th>Link</th>
+                {% if role != 3 %} <th>Student</th> {% endif %}
+                <th>Milestones</th>
+                {% if role == 1 or role == 2 %} <th>Action</th> {% endif %}
+            </tr>
+            {% for p in projects %}
+            <tr>
+                <td style="padding:10px;">{{ p[1] }}</td>
+                <td>{{ p[2] }}</td>
+                <td><a href="{{ p[3] }}" target="_blank">View Code</a></td>
+                
+                {% if role != 3 %} <td>{{ p[7] }}</td> {% endif %} <td>
+                    {% for m in milestones[p[0]] %}
+                        <div>
+                            <a href="/toggle_milestone/{{ m[0] }}" style="text-decoration:none;">
+                                {% if m[2] %}✅{% else %}⬜{% endif %}
+                            </a> {{ m[1] }}
+                        </div>
+                    {% endfor %}
+                    <form action="/add_milestone" method="POST" style="margin-top:5px;">
+                        <input type="hidden" name="assign_id" value="{{ p[0] }}">
+                        <input type="text" name="task" placeholder="New task..." size="10">
+                        <button type="submit">+</button>
+                    </form>
+                </td>
+
+                {% if role == 1 or role == 2 %}
+                <td style="text-align:center;">
+                    <a href="/delete/{{ p[0] }}" style="color:red;" onclick="return confirm('Confirm delete?');">Delete</a>
+                </td>
+                {% endif %}
+            </tr>
+            {% else %}
+            <tr><td colspan="6" style="padding:20px; text-align:center;">No projects found.</td></tr>
+            {% endfor %}
+        </table>
+        {% if role == 4 %}
+        <p style="color:gray; font-style:italic; text-align:center;">* External Examiner: Read-Only Access.</p>
+        {% endif %}
+    </div>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %} <div style="background:#e3f2fd; padding:10px; color:#0d47a1;">{{ messages[0] }}</div> {% endif %}
+    {% endwith %}
+</div>
+
+</body>
+</html>
