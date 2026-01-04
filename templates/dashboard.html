@@ -76,17 +76,19 @@
                 <th style="padding:10px;">Title</th>
                 <th>Description</th>
                 <th>Link</th>
-                {% if role != 3 %} <th>Student</th> {% endif %}
+                {% if role != 3 %} 
+                    <th>Student ID</th> 
+                    <th>Username</th> 
+                {% endif %}
                 <th>Milestones</th>
                 {% if role == 1 or role == 2 %} <th>Action</th> {% endif %}
             </tr>
             {% for p in projects %}
             <tr>
-                <td style="padding:10px;">{{ p[1] }}</td>
-                <td>{{ p[2] }}</td>
-                <td><a href="{{ p[3] }}" target="_blank">View Code</a></td>
-                
-                {% if role != 3 %} <td>{{ p[7] }}</td> {% endif %} <td>
+                <td style="padding:10px;">{{ p[1] }}</td> <td>{{ p[2] }}</td> <td><a href="{{ p[3] }}" target="_blank">View Code</a></td> {% if role != 3 %} 
+                    <td style="text-align:center;">{{ p[4] }}</td> <td style="font-weight:bold; color:#007bff;">{{ p[6] }}</td> {% endif %} 
+
+                <td>
                     {% for m in milestones[p[0]] %}
                         <div>
                             <a href="/toggle_milestone/{{ m[0] }}" style="text-decoration:none;">
@@ -108,7 +110,7 @@
                 {% endif %}
             </tr>
             {% else %}
-            <tr><td colspan="6" style="padding:20px; text-align:center;">No projects found.</td></tr>
+            <tr><td colspan="7" style="padding:20px; text-align:center;">No projects found.</td></tr>
             {% endfor %}
         </table>
         {% if role == 4 %}
