@@ -6,14 +6,12 @@ import re
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'secure_assignment_key_final'
 
-# --- DATABASE CONNECTION & RLS ---
+# [SECURITY] Use Environment Variable for Secret Key
+app.secret_key = os.getenv('FLASK_SECRET', 'dev_fallback_key_do_not_use_in_prod')
+
+# --- DATABASE CONNECTION ---
 def get_db():
-    # -------------------------------------------------------------------------
-    # IMPORTANT: Change 'SERVER=localhost' to your actual server name if needed
-    # Example: 'SERVER=DESKTOP-ABC1234\SQLEXPRESS;'
-    # -------------------------------------------------------------------------
     conn = pyodbc.connect(
         'DRIVER={ODBC Driver 18 for SQL Server};'
         'SERVER=localhost;'  
@@ -22,40 +20,35 @@ def get_db():
         'TrustServerCertificate=yes;'
     )
     
-    # --- ROW-LEVEL SECURITY (RLS) INJECTION ---
+    # [SECURITY] Inject User Context (ID, Role, IP) for RLS and Auditing
     if 'user_id' in session and 'role' in session:
         cursor = conn.cursor()
         cursor.execute("EXEC sp_set_session_context @key=N'UserID', @value=?", (session['user_id'],))
         cursor.execute("EXEC sp_set_session_context @key=N'RoleID', @value=?", (session['role'],))
+        
+        try:
+            client_ip = request.remote_addr
+            cursor.execute("EXEC sp_set_session_context @key=N'UserIP', @value=?", (client_ip,))
+        except:
+            pass
         cursor.close()
         
     return conn
 
-# --- SECURITY UTILITIES ---
+# --- UTILS ---
 def hash_password(password, salt=None):
-    if not salt:
-        salt = os.urandom(16).hex()
-    pwd_hash = hashlib.sha256((password + salt).encode()).hexdigest()
-    return pwd_hash, salt
+    if not salt: salt = os.urandom(16).hex()
+    return hashlib.sha256((password + salt).encode()).hexdigest(), salt
 
 def is_password_complex(password):
-    if len(password) < 8: return False
-    if not re.search(r"[A-Z]", password): return False # At least 1 Uppercase
-    if not re.search(r"[0-9]", password): return False # At least 1 Number
-    if not re.search(r"[!@#$%^&*]", password): return False # At least 1 Symbol
-    return True
+    return len(password) >= 8 and re.search(r"[A-Z]", password) and re.search(r"[0-9]", password) and re.search(r"[!@#$%^&*]", password)
 
 def is_login_allowed():
-    current_hour = datetime.now().hour
-    if 3 <= current_hour < 5:
-        return False
-    return True
+    return not (3 <= datetime.now().hour < 5)
 
-# --- CONTEXT PROCESSOR ---
 @app.context_processor
 def inject_globals():
     if 'user_id' not in session: return {}
-    
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -67,7 +60,6 @@ def inject_globals():
         return {}
 
 # --- ROUTES ---
-
 @app.route('/')
 def home():
     if 'user_id' in session: return redirect(url_for('dashboard'))
@@ -77,50 +69,34 @@ def home():
 def login():
     if request.method == 'POST':
         if not is_login_allowed():
-            flash("Maintenance Mode: Logins disabled (3AM-5AM).")
+            flash("Maintenance Mode (3AM-5AM)")
             return render_template('login.html')
 
         username = request.form['username']
         password = request.form['password']
         
-        print(f"DEBUG: Attempting login for: {username}") 
-
         conn = get_db()
         cursor = conn.cursor()
-        
         try:
             cursor.execute("{CALL Sec.sp_GetDecryptedUser (?)}", (username,))
             user = cursor.fetchone()
-        except Exception as e:
-            print(f"DEBUG: Database Error: {e}") 
-            flash("Database Error: Check Server Connection in app.py")
-            return render_template('login.html')
-        
-        if user:
-            print(f"DEBUG: User found in DB. ID={user[0]}, Role={user[3]}")
             
-            stored_hash = user[1]
-            stored_salt = user[2]
-            
-            calculated_hash = hash_password(password, stored_salt)[0]
-            
-            if calculated_hash == stored_hash:
-                print("DEBUG: Password Verified! Logging in...")
+            if user and hash_password(password, user[2])[0] == user[1]:
                 session['user_id'] = user[0]
                 session['role'] = user[3]
-                session['username'] = username 
+                session['username'] = username
                 
-                cursor.execute("INSERT INTO Sec.AuditLog (ActionType, UserIP, Details) VALUES (?, ?, ?)", 
-                               ('LOGIN_SUCCESS', request.remote_addr, f"User {username} logged in"))
+                # [LOGGING] Log Login Success
+                cursor.execute("INSERT INTO Sec.AuditLog (ActionType, TableName, RecordID, UserID, UserIP, Details) VALUES (?, ?, ?, ?, ?, ?)",
+                               ('LOGIN_SUCCESS', 'App.Users', str(user[0]), user[0], request.remote_addr, f"User {username} logged in"))
                 conn.commit()
                 conn.close()
                 return redirect(url_for('dashboard'))
             else:
-                print("DEBUG: Password Mismatch.")
-        else:
-            print("DEBUG: User not found in database.")
-
-        flash("Invalid Credentials.")
+                flash("Invalid Credentials")
+        except Exception as e:
+            print(e)
+            flash("Database Error")
         conn.close()
     return render_template('login.html')
 
@@ -128,112 +104,111 @@ def login():
 def register():
     if request.method == 'POST':
         if not request.form.get('consent'):
-            flash("You must agree to PDPA processing.")
+            flash("You must agree to PDPA.")
             return render_template('register.html')
-        
         if not is_password_complex(request.form['password']):
-            flash("Password too weak! (Min 8 chars, Uppercase, Number, Symbol)")
+            flash("Weak Password")
             return render_template('register.html')
 
-        uname = request.form['username']
-        pword = request.form['password']
-        email = request.form['email']
-        phone = request.form['phone']
-        role = request.form['role']
-
-        pwd_hash, salt = hash_password(pword)
+        # [SECURITY] Force Role = 3 (Student)
+        role = 3
+        pwd_hash, salt = hash_password(request.form['password'])
         
         try:
             conn = get_db()
             conn.cursor().execute("{CALL Sec.sp_RegisterUser (?, ?, ?, ?, ?, ?)}", 
-                                  (uname, pwd_hash, salt, email, phone, role))
+                                  (request.form['username'], pwd_hash, salt, request.form['email'], request.form['phone'], role))
             conn.commit()
             conn.close()
-            flash("Registration Successful! Please Login.")
+            flash("Registered! Please Login.")
             return redirect(url_for('login'))
-        except Exception as e:
-            print(f"Register Error: {e}")
-            flash("Error: Username likely already exists.")
-            
+        except:
+            flash("Username likely exists.")
     return render_template('register.html')
 
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session: return redirect(url_for('home'))
-    
     conn = get_db()
     cursor = conn.cursor()
     
     cursor.execute("SELECT ConfigValue FROM Sec.SystemConfig WHERE ConfigKey = 'AllowUploads'")
     uploads_allowed = cursor.fetchone()[0]
     
-    projects = []
-    audit_logs = []
-    milestones = {}
-
-    if session['role'] == 3: 
-        cursor.execute("SELECT * FROM App.Assignments WHERE SubmittedBy = ?", (session['user_id'],))
-    else: 
-        cursor.execute("SELECT A.*, U.Username FROM App.Assignments A JOIN App.Users U ON A.SubmittedBy = U.UserID")
-    
+    # Fetch Projects
+    # NEW CODE (Secure: Relies on SQL RLS)
+    # We ask for EVERYTHING. The Database will silently remove rows the user isn't allowed to see.
+    cursor.execute("SELECT A.*, U.Username FROM App.Assignments A JOIN App.Users U ON A.SubmittedBy = U.UserID")
     projects = cursor.fetchall()
+    
+    audit_logs = []
+    feedbacks = [] # NEW: Variable to store feedback
 
     if session['role'] == 1:
+        # 1. Fetch Audit Logs
         cursor.execute("SELECT TOP 15 * FROM Sec.AuditLog ORDER BY Timestamp DESC")
         audit_logs = cursor.fetchall()
 
-    for p in projects:
-        pid = p[0]
-        cursor.execute("SELECT MilestoneID, TaskName, IsCompleted FROM App.Milestones WHERE AssignmentID = ?", (pid,))
-        milestones[pid] = cursor.fetchall()
+        # 2. [NEW] Fetch User Feedback
+        cursor.execute("""
+            SELECT F.DateCreated, F.IssueType, F.Message, U.Username 
+            FROM App.Feedback F 
+            JOIN App.Users U ON F.SubmittedBy = U.UserID 
+            ORDER BY F.DateCreated DESC
+        """)
+        feedbacks = cursor.fetchall()
 
+    milestones = {}
+    for p in projects:
+        cursor.execute("SELECT MilestoneID, TaskName, IsCompleted FROM App.Milestones WHERE AssignmentID = ?", (p[0],))
+        milestones[p[0]] = cursor.fetchall()
+        
     conn.close()
     return render_template('dashboard.html', projects=projects, audit_logs=audit_logs, 
-                           milestones=milestones, uploads_allowed=uploads_allowed)
+                           feedbacks=feedbacks, milestones=milestones, uploads_allowed=uploads_allowed)
 
 @app.route('/submit', methods=['POST'])
 def submit():
     conn = get_db()
     cursor = conn.cursor()
-    
     cursor.execute("SELECT ConfigValue FROM Sec.SystemConfig WHERE ConfigKey = 'AllowUploads'")
     if cursor.fetchone()[0] == 'FALSE':
-        flash("Submissions currently disabled by Admin.")
+        flash("Submissions Disabled")
     else:
         cursor.execute("INSERT INTO App.Assignments (ProjectTitle, Description, GitHubLink, SubmittedBy) VALUES (?, ?, ?, ?)", 
                        (request.form['title'], request.form['desc'], request.form['link'], session['user_id']))
         conn.commit()
-        flash("Project Submitted.")
-        
+        flash("Project Submitted")
     conn.close()
     return redirect(url_for('dashboard'))
 
-@app.route('/delete/<int:id>')
+@app.route('/delete/<int:id>', methods=['POST'])
 def delete_project(id):
-    if session.get('role') in [1, 2]: 
+    if session.get('role') in [1, 2]:
         conn = get_db()
         conn.cursor().execute("DELETE FROM App.Assignments WHERE AssignmentID = ?", (id,))
         conn.commit()
         conn.close()
-        flash("Project Deleted (Logged in Audit Trail).")
+        flash("Project Deleted")
     return redirect(url_for('dashboard'))
 
 @app.route('/toggle_security')
 def toggle_security():
-    if session.get('role') == 1: 
+    if session.get('role') == 1:
         conn = get_db()
-        conn.cursor().execute("UPDATE Sec.SystemConfig SET ConfigValue = CASE WHEN ConfigValue = 'TRUE' THEN 'FALSE' ELSE 'TRUE' END WHERE ConfigKey = 'AllowUploads'")
+        cursor = conn.cursor()
+        cursor.execute("UPDATE Sec.SystemConfig SET ConfigValue = CASE WHEN ConfigValue = 'TRUE' THEN 'FALSE' ELSE 'TRUE' END WHERE ConfigKey = 'AllowUploads'")
+        # [LOGGING] Log Config Change
+        cursor.execute("INSERT INTO Sec.AuditLog (ActionType, TableName, RecordID, UserID, UserIP, Details) VALUES (?, ?, ?, ?, ?, ?)",
+                       ('TOGGLE_SECURITY', 'Sec.SystemConfig', 'AllowUploads', session['user_id'], request.remote_addr, 'Admin toggled upload permission'))
         conn.commit()
         conn.close()
     return redirect(url_for('dashboard'))
 
-# --- EXTRA FEATURES: Milestones, Notifications, Feedback ---
-
 @app.route('/add_milestone', methods=['POST'])
 def add_milestone():
     conn = get_db()
-    conn.cursor().execute("INSERT INTO App.Milestones (AssignmentID, TaskName) VALUES (?, ?)", 
-                          (request.form['assign_id'], request.form['task']))
+    conn.cursor().execute("INSERT INTO App.Milestones (AssignmentID, TaskName) VALUES (?, ?)", (request.form['assign_id'], request.form['task']))
     conn.commit()
     conn.close()
     return redirect(url_for('dashboard'))

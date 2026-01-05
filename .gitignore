@@ -1,0 +1,10 @@
+# Secrets (NEVER upload these!)
+.env
+
+# Python compilation files (Junk files)
+__pycache__/
+*.pyc
+
+# System files
+.DS_Store
+Thumbs.db

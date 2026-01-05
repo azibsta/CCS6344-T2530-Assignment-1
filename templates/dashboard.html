@@ -2,240 +2,135 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | Project Portal</title>
+    <title>Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --primary: #4361ee; 
-            --dark: #1e1e2f; 
-            --light: #f8f9fa; 
-            --sidebar-w: 260px;
-        }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; display: flex; transition: 0.3s; }
-        
-        /* Collapsible Sidebar */
-        .sidebar { 
-            width: var(--sidebar-w); background: var(--dark); height: 100vh; position: fixed; 
-            transition: 0.3s; overflow: hidden; z-index: 1000; box-shadow: 4px 0 10px rgba(0,0,0,0.1);
-        }
-        .sidebar.collapsed { width: 70px; }
-        .sidebar-header { padding: 20px; color: white; display: flex; align-items: center; justify-content: space-between; }
-        .sidebar-nav { padding: 10px; }
-        .sidebar a { 
-            display: flex; align-items: center; color: #a2a2c2; padding: 12px 15px; 
-            text-decoration: none; border-radius: 8px; margin-bottom: 5px; transition: 0.2s;
-        }
-        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.1); color: white; }
-        .sidebar i { width: 30px; font-size: 1.2rem; }
-        .sidebar span { transition: 0.3s; white-space: nowrap; }
-        .sidebar.collapsed span { opacity: 0; visibility: hidden; }
-
-        /* Notification Badge */
-        .badge { 
-            background: #e63946; color: white; padding: 2px 6px; 
-            border-radius: 50%; font-size: 0.75rem; margin-left: auto; 
-        }
-
-        /* Content Area */
-        .main-content { margin-left: var(--sidebar-w); width: 100%; transition: 0.3s; padding: 30px; box-sizing: border-box;}
-        .main-content.expanded { margin-left: 70px; }
-        
-        /* Stats Cards */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border-bottom: 4px solid var(--primary); }
-        
-        /* Main Cards */
-        .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        
-        /* Tables */
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { text-align: left; padding: 12px; border-bottom: 2px solid #eee; color: #666; }
-        td { padding: 15px 12px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
-        
-        /* Status Pills */
-        .status-pill { padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; }
-        .status-enabled { background: #d4edda; color: #155724; }
-        .status-disabled { background: #f8d7da; color: #721c24; }
-
-        /* Admin Log Terminal */
-        .log-terminal {
-            background: #1e1e2f; color: #4cd137; padding: 15px; border-radius: 8px; 
-            font-family: 'Consolas', 'Monaco', monospace; height: 250px; overflow-y: auto; 
-            font-size: 0.85rem; margin-top: 15px; border: 1px solid #333;
-        }
-        .log-entry { border-bottom: 1px solid #333; padding: 6px 0; display: flex; align-items: center; }
-        .log-time { color: #00a8ff; margin-right: 15px; min-width: 80px; }
-        .log-action { color: #e1b12c; font-weight: bold; margin-right: 15px; min-width: 120px; }
-
-        .toggle-btn { cursor: pointer; background: none; border: none; color: white; font-size: 1.5rem; }
-        .btn-primary { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; display: flex; margin: 0; }
+        .sidebar { width: 250px; background: #343a40; color: white; min-height: 100vh; padding: 20px; }
+        .sidebar a { display: block; color: #adb5bd; padding: 10px; text-decoration: none; }
+        .sidebar a:hover { color: white; }
+        .content { flex: 1; padding: 30px; }
+        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .log-terminal { background: #1e1e2f; color: #00ff00; padding: 15px; font-family: monospace; height: 200px; overflow-y: auto; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
     </style>
 </head>
 <body>
 
-<div class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-        <h2 id="logo-text" style="margin:0;">Portal</h2>
-        <button class="toggle-btn" onclick="toggleSidebar()"><i class="fa fa-bars"></i></button>
-    </div>
-    <div class="sidebar-nav">
-        <a href="/dashboard" class="active"><i class="fa fa-home"></i> <span>Dashboard</span></a>
-        <a href="/notifications" style="justify-content: space-between;">
-            <div style="display:flex; align-items:center;"><i class="fa fa-bell"></i> <span>Alerts</span></div>
-            {% if notif_count > 0 %}<span class="badge">{{ notif_count }}</span>{% endif %}
-        </a>
-        <a href="/feedback"><i class="fa fa-comment-dots"></i> <span>Feedback</span></a>
-        <hr style="border-color: rgba(255,255,255,0.1);">
-        <a href="/logout"><i class="fa fa-right-from-bracket"></i> <span>Logout</span></a>
-    </div>
+<div class="sidebar">
+    <h2>Portal</h2>
+    <p>User: {{ username }}</p>
+    <a href="/dashboard"><i class="fa fa-home"></i> Dashboard</a>
+    <a href="/notifications"><i class="fa fa-bell"></i> Alerts ({{ notif_count }})</a>
+    <a href="/feedback"><i class="fa fa-comment"></i> Feedback</a>
+    <a href="/logout"><i class="fa fa-sign-out-alt"></i> Logout</a>
 </div>
 
-<div class="main-content" id="main-content">
-    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-        <div>
-            <h1 style="margin:0;">Welcome back, {{ username }}!</h1>
-            <p style="color: #777; margin-top:5px;">Here is what's happening with your projects today.</p>
-        </div>
-        <div class="user-profile" style="background: white; padding: 8px 15px; border-radius: 30px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-            <i class="fa fa-circle-user" style="font-size: 1.5rem; color: var(--primary);"></i>
-            <span style="font-weight: 600;">{% if role == 1 %}Admin{% elif role == 2 %}Lecturer{% elif role == 3 %}Student{% else %}Examiner{% endif %}</span>
-        </div>
-    </header>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <small style="color: #888; font-weight: 600;">ACTIVE PROJECTS</small>
-            <h2 style="margin: 10px 0 0 0;">{{ projects|length }}</h2>
-        </div>
-        <div class="stat-card" style="border-color: #2ec4b6;">
-            <small style="color: #888; font-weight: 600;">NOTIFICATIONS</small>
-            <h2 style="margin: 10px 0 0 0;">{{ notif_count }}</h2>
+<div class="content">
+    {% if role == 1 %}
+    <div class="card" style="border-left: 5px solid #d9534f;">
+        <h3>🛡️ Admin Security Center</h3>
+        <p>Uploads: <b>{{ 'ENABLED' if uploads_allowed == 'TRUE' else 'DISABLED' }}</b> <a href="/toggle_security">[Toggle]</a></p>
+        
+        <h4>Live Audit Log</h4>
+        <div class="log-terminal">
+            {% for log in audit_logs %}
+            <div>
+                [{{ log[6].strftime('%H:%M:%S') }}] {{ log[1] }} - {{ log[7] }} (IP: {{ log[5] }})
+            </div>
+            {% else %}
+            <div>No logs found.</div>
+            {% endfor %}
         </div>
     </div>
 
-    {% if role == 1 %}
-    <div class="card" style="background: #fff5f5; border-left: 5px solid #d9534f;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin:0"><i class="fa fa-shield-halved"></i> Security & Audit Center</h3>
-            <p style="margin:0">
-                Current Status: 
-                <span class="status-pill {% if uploads_allowed == 'TRUE' %}status-enabled{% else %}status-disabled{% endif %}">
-                    {{ "UPLOADS ENABLED" if uploads_allowed == 'TRUE' else "UPLOADS DISABLED" }}
-                </span>
-                <a href="/toggle_security" style="margin-left: 10px; font-size: 0.9rem; text-decoration: underline;">[Toggle Switch]</a>
-            </p>
-        </div>
-
-        <h4 style="margin-top: 20px; color: #555;">📜 Live System Activity Log (Last 15 Events)</h4>
-        <div class="log-terminal">
-            {% for log in audit_logs %}
-            <div class="log-entry">
-                <span class="log-time">[{{ log[5].strftime('%H:%M:%S') }}]</span>
-                <span class="log-action">{{ log[1] }}</span>
-                <span>{{ log[6] }} <span style="color: #aaa;">(IP: {{ log[4] }})</span></span>
-            </div>
-            {% else %}
-            <div style="padding: 10px; color: #888;">No recent activity logs found.</div>
-            {% endfor %}
-        </div>
+    <div class="card">
+        <h3>📩 User Feedback Reports</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Type</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in feedbacks %}
+                <tr>
+                    <td style="white-space:nowrap; color:gray;">{{ f[0].strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td style="font-weight:bold;">{{ f[3] }}</td>
+                    <td><span style="background:#e9ecef; padding:4px 8px; border-radius:4px; font-size:0.9em;">{{ f[1] }}</span></td>
+                    <td>{{ f[2] }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="text-align:center; color:gray;">No feedback received yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% endif %}
 
     <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3>Project Repository</h3>
-            {% if role == 3 and uploads_allowed == 'TRUE' %}
-            <button class="btn-primary" onclick="document.getElementById('submit-form').scrollIntoView({behavior: 'smooth'})">+ New Project</button>
-            {% endif %}
-        </div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Status/Milestones</th>
-                        <th>Repository</th>
-                        {% if role != 3 %}<th>Student</th>{% endif %}
-                        {% if role < 3 %}<th>Actions</th>{% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in projects %}
-                    <tr>
-                        <td style="font-weight: 600;">{{ p[1] }}</td>
-                        <td>
-                            <div style="font-size: 0.85rem;">
-                                {% for m in milestones[p[0]] %}
-                                <div style="margin-bottom: 2px;">
-                                    {% if role == 3 %}
-                                        <a href="/toggle_milestone/{{ m[0] }}" style="text-decoration:none;" title="Toggle Status">
-                                            {% if m[2] %}✅{% else %}⬜{% endif %}
-                                        </a> 
-                                    {% else %}
-                                        <span style="opacity: 0.7; cursor: default;" title="Read Only">
-                                            {% if m[2] %}✅{% else %}⬜{% endif %}
-                                        </span>
-                                    {% endif %}
-                                    {{ m[1] }}
-                                </div>
-                                {% endfor %}
-
-                                {% if role == 3 %}
-                                <form action="/add_milestone" method="POST" style="margin-top: 8px; display: flex; align-items: center; gap: 5px;">
-                                    <input type="hidden" name="assign_id" value="{{ p[0] }}">
-                                    <input type="text" name="task" placeholder="Add task..." required 
-                                           style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8rem; width: 120px;">
-                                    <button type="submit" style="background: var(--primary); color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 0.8rem;">
-                                        <i class="fa fa-plus"></i>
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td><a href="{{ p[3] }}" target="_blank" style="color: var(--primary);"><i class="fab fa-github"></i> View Repository</a></td>
-                        {% if role != 3 %}<td><strong>{{ p[6] }}</strong><br><small style="color:#888">ID: {{ p[4] }}</small></td>{% endif %}
-                        {% if role < 3 %}
-                        <td><a href="/delete/{{ p[0] }}" style="color: #e63946;" onclick="return confirm('Delete project?')"><i class="fa fa-trash"></i></a></td>
+        <h3>Project Repository</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Milestones</th>
+                    <th>Link</th>
+                    {% if role != 3 %}<th>Student</th>{% endif %}
+                    {% if role < 3 %}<th>Actions</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in projects %}
+                <tr>
+                    <td>{{ p[1] }}</td>
+                    <td>
+                        {% for m in milestones[p[0]] %}
+                        <div>
+                            <a href="/toggle_milestone/{{ m[0] }}" style="text-decoration:none;">{{ '✅' if m[2] else '⬜' }}</a> {{ m[1] }}
+                        </div>
+                        {% endfor %}
+                        {% if role == 3 %}
+                        <form action="/add_milestone" method="POST" style="margin-top:5px;">
+                            <input type="hidden" name="assign_id" value="{{ p[0] }}">
+                            <input type="text" name="task" placeholder="Task..." size="10">
+                            <button type="submit">+</button>
+                        </form>
                         {% endif %}
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="5" style="text-align: center; padding: 20px; color: #999;">No projects found.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                    </td>
+                    <td><a href="{{ p[3] }}" target="_blank">Code</a></td>
+                    {% if role != 3 %}<td><strong>{{ p[6] }}</strong></td>{% endif %}
+                    {% if role < 3 %}
+                    <td>
+                        <form action="/delete/{{ p[0] }}" method="POST" onsubmit="return confirm('Delete?');">
+                            <button style="color:red; background:none; border:none; cursor:pointer;">Delete</button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No projects.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    
+
     {% if role == 3 and uploads_allowed == 'TRUE' %}
-    <div class="card" id="submit-form">
-        <h3>Submit New Project</h3>
-        <form action="/submit" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <input type="text" name="title" placeholder="Project Title" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
-            <input type="text" name="link" placeholder="GitHub Link" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
-            <input type="text" name="desc" placeholder="Description" style="grid-column: span 2; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
-            <button type="submit" class="btn-primary" style="grid-column: span 2;">Submit Project</button>
+    <div class="card">
+        <h3>Submit Project</h3>
+        <form action="/submit" method="POST">
+            <input type="text" name="title" placeholder="Title" required>
+            <input type="text" name="link" placeholder="GitHub Link" required>
+            <input type="text" name="desc" placeholder="Description">
+            <button type="submit">Submit</button>
         </form>
     </div>
     {% endif %}
 </div>
 
-<script>
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const content = document.getElementById('main-content');
-        const logo = document.getElementById('logo-text');
-        
-        sidebar.classList.toggle('collapsed');
-        content.classList.toggle('expanded');
-        
-        if (sidebar.classList.contains('collapsed')) {
-            logo.style.display = 'none';
-        } else {
-            setTimeout(() => { logo.style.display = 'block'; }, 200);
-        }
-    }
-</script>
 </body>
 </html>

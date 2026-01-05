@@ -9,114 +9,24 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;
         }
         .register-container {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 400px;
+            background: white; padding: 40px; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px;
         }
-        h2 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-            position: relative;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #34495e;
-            font-size: 14px;
-        }
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #dcdfe6;
-            border-radius: 6px;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-        input:focus {
-            outline: none;
-            border-color: #409eff;
-        }
-        .password-policy {
-            font-size: 11px;
-            color: #909399;
-            margin-top: 5px;
-            line-height: 1.4;
-        }
-        .show-password-wrap {
-            margin-top: 8px;
-            display: flex;
-            align-items: center;
-            font-size: 13px;
-            color: #606266;
-            cursor: pointer;
-        }
-        .show-password-wrap input {
-            margin-right: 8px;
-        }
-        .pdpa-box {
-            background: #fdf6ec;
-            border: 1px solid #faecd8;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #e6a23c;
-            margin-bottom: 20px;
-        }
-        .pdpa-box input {
-            margin-right: 10px;
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; position: relative; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #34495e; font-size: 14px; }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%; padding: 12px; border: 1px solid #dcdfe6; border-radius: 6px; box-sizing: border-box;
         }
         .btn-register {
-            width: 100%;
-            padding: 14px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s;
+            width: 100%; padding: 14px; background-color: #28a745; color: white; border: none;
+            border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer;
         }
-        .btn-register:hover {
-            background-color: #218838;
-        }
-        .footer-links {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-        .footer-links a {
-            color: #409eff;
-            text-decoration: none;
-        }
-        .error-msg {
-            background: #fef0f0;
-            color: #f56c6c;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            text-align: center;
-            border: 1px solid #fde2e2;
-        }
+        .footer-links { text-align: center; margin-top: 20px; font-size: 14px; }
+        .error-msg { background: #fef0f0; color: #f56c6c; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -133,6 +43,8 @@
     {% endwith %}
 
     <form action="/register" method="POST">
+        <input type="hidden" name="role" value="3">
+
         <div class="form-group">
             <label>Username</label>
             <input type="text" name="username" placeholder="e.g. StudentID123" required>
@@ -141,12 +53,9 @@
         <div class="form-group">
             <label>Password</label>
             <input type="password" name="password" id="regPass" placeholder="••••••••" required>
-            <div class="show-password-wrap">
-                <input type="checkbox" id="toggleCheck" onclick="togglePasswordVisibility()"> 
-                <label for="toggleCheck" style="margin:0; font-weight:normal; cursor:pointer;">Show Password</label>
-            </div>
-            <div class="password-policy">
-                <i class="fa fa-info-circle"></i> Must be 8+ characters, include an uppercase letter, a number, and a special symbol (!@#$%).
+            <div style="margin-top: 5px;">
+                <input type="checkbox" onclick="document.getElementById('regPass').type = document.getElementById('regPass').type === 'password' ? 'text' : 'password'">
+                <small>Show Password</small>
             </div>
         </div>
 
@@ -160,20 +69,10 @@
             <input type="text" name="phone" placeholder="012-3456789" required>
         </div>
 
-        <div class="form-group">
-            <label>System Role</label>
-            <select name="role">
-                <option value="3">Student</option>
-                <option value="2">Lecturer</option>
-                <option value="4">External Examiner</option>
-                <option value="1">System Admin</option>
-            </select>
-        </div>
-
-        <div class="pdpa-box">
-            <label style="display: flex; align-items: flex-start; font-weight: normal; color: #826332;">
-                <input type="checkbox" name="consent" style="margin-top: 3px;" required>
-                <span>I hereby consent to the processing of my personal data in accordance with the <b>Malaysia PDPA 2010</b> regulations.</span>
+        <div class="pdpa-box" style="margin-bottom:20px;">
+            <label style="display: flex; align-items: flex-start; font-weight: normal; font-size:12px;">
+                <input type="checkbox" name="consent" style="margin-top: 3px; margin-right:5px;" required>
+                <span>I consent to PDPA 2010 processing.</span>
             </label>
         </div>
 
@@ -184,17 +83,5 @@
         Already have an account? <a href="/">Login here</a>
     </div>
 </div>
-
-<script>
-    function togglePasswordVisibility() {
-        var passwordField = document.getElementById("regPass");
-        if (passwordField.type === "password") {
-            passwordField.type = "text";
-        } else {
-            passwordField.type = "password";
-        }
-    }
-</script>
-
 </body>
 </html>
